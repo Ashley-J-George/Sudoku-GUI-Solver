@@ -1,25 +1,16 @@
 # GUI.py
+from random import sample
 import pygame
 import time
 pygame.font.init()
 
 
 class Grid:
-    board = [
-        [7, 8, 0, 4, 0, 0, 1, 2, 0],
-        [6, 0, 0, 0, 7, 5, 0, 0, 9],
-        [0, 0, 0, 6, 0, 1, 0, 7, 8],
-        [0, 0, 7, 0, 4, 0, 2, 6, 0],
-        [0, 0, 1, 0, 5, 0, 9, 3, 0],
-        [9, 0, 4, 0, 6, 0, 0, 0, 5],
-        [0, 7, 0, 3, 0, 0, 0, 1, 2],
-        [1, 2, 0, 0, 0, 7, 4, 0, 0],
-        [0, 4, 9, 2, 0, 6, 0, 0, 7]
-    ]
 
-    def __init__(self, rows, cols, width, height, win):
+    def __init__(self, rows, cols, board, width, height, win):
         self.rows = rows
         self.cols = cols
+        self.board = board
         self.cubes = [[Cube(self.board[i][j], i, j, width, height) for j in range(cols)] for i in range(rows)]
         self.width = width
         self.height = height
@@ -199,6 +190,35 @@ class Cube:
     def set_temp(self, val):
         self.temp = val
 
+        
+#Class To Generate Random Sudoku Puzzle
+class GeneratePuzzle:
+
+	def __init__(self):
+		self.base  = 3
+		self.side  = self.base * self.base
+		self.board = []
+
+	def pattern(self, r, c): 
+		return (self.base * (r % self.base) + r // self.base + c) % self.side
+
+	def shuffle(self, s): 
+		return sample(s,len(s))
+
+	def generate_board(self):
+		rBase = range(self.base) 
+		rows  = [ g*self.base + r for g in self.shuffle(rBase) for r in self.shuffle(rBase) ] 
+		cols  = [ g*self.base + c for g in self.shuffle(rBase) for c in self.shuffle(rBase) ]
+		nums  = self.shuffle(range(1, self.base * self.base + 1))
+		self.board = [ [nums[self.pattern(r,c)] for c in cols] for r in rows ]
+		self.remove_numbers()
+
+	def remove_numbers(self):
+		squares = self.side * self.side
+		empties = squares * 3 // 4
+		for p in sample(range(squares),empties):
+		    self.board[p // self.side][p % self.side] = 0
+        
 
 def find_empty(bo):
     for i in range(len(bo)):
@@ -254,10 +274,32 @@ def format_time(secs):
     return mat
 
 
+#Printing Game Over Screen
+def go_screen(screen):
+	while True:		
+		screen.fill((255,255,255))
+		fnt = pygame.font.SysFont("comicsans", 40)
+		text = fnt.render("5 Strikes Game Over!!!", 1, (0, 0, 0))
+		screen.blit(text, (screen.get_width() / 4 - 10, screen.get_height() / 2 - 20))
+		text = fnt.render("Click To Quit and Enter To Continue!", 1, (0, 0, 0))
+		screen.blit(text, (screen.get_width() / 4 - 115, screen.get_height() / 2 + 30))
+		pygame.display.update()
+
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:
+				return False
+			elif event.type == pygame.MOUSEBUTTONDOWN:
+				return False
+			elif event.type == pygame.KEYDOWN:
+				return True
+
+
 def main():
     win = pygame.display.set_mode((540,600))
     pygame.display.set_caption("Sudoku")
-    board = Grid(9, 9, 540, 540, win)
+    g = GeneratePuzzle()
+	g.generate_board()
+    board = Grid(9, 9, g.board, 540, 540, win)
     key = None
     run = True
     start = time.time()
@@ -265,6 +307,16 @@ def main():
     while run:
 
         play_time = round(time.time() - start)
+        
+        if strikes == 5:
+			run = go_screen(win)
+			if run:
+				g.produce_board()
+				board = Grid(9, 9, g.board, 540, 540, win)
+				key = None
+				run = True
+				start = time.time()
+				strikes = 0
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
